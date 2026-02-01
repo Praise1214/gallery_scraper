@@ -1,0 +1,28 @@
+{
+  "name": "art-gallery-scraper",
+  "version": "1.0.1",
+  "description": "Production-ready Apify Actor for scraping US art gallery contact details at scale",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node main.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "apify",
+    "crawler",
+    "scraper",
+    "art-galleries",
+    "playwright"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "apify": "^3.1.10",
+    "crawlee": "^3.5.8",
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

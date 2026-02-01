@@ -1,0 +1,38 @@
+{
+    "actorSpecification": 1,
+    "name": "art-gallery-contact-scraper",
+    "title": "Art Gallery Contact Scraper",
+    "description": "Scrapes contact details from US art galleries at scale. Extracts emails, phone numbers, and locations from gallery websites.",
+    "version": "1.0.1",
+    "meta": {
+        "templateId": "js-playwright"
+    },
+    "input": "./INPUT_SCHEMA.json",
+    "dockerfile": "./Dockerfile",
+    "readme": "./README.md",
+    "categories": ["BUSINESS_AUTOMATION"],
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Gallery Contacts",
+            "views": {
+                "overview": {
+                    "title": "Overview",
+                    "transformation": {
+                        "fields": [
+                            "galleryName",
+                            "website",
+                            "emails",
+                            "phoneNumbers",
+                            "location"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {}
+                    }
+                }
+            }
+        }
+    }
+}

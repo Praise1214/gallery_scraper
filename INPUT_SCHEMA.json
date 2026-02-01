@@ -1,0 +1,92 @@
+{
+    "title": "Art Gallery Contact Scraper Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "startUrls": {
+            "title": "Start URLs",
+            "type": "array",
+            "description": "List of gallery directory URLs to scrape from",
+            "editor": "requestListSources",
+            "prefill": [
+                { "url": "https://www.artsy.net/galleries" },
+                { "url": "https://www.artnet.com/galleries/" }
+            ]
+        },
+        "sitemapUrls": {
+            "title": "Sitemap URLs",
+            "type": "array",
+            "description": "Optional sitemap URLs to expand into listing/gallery pages",
+            "editor": "requestListSources",
+            "prefill": []
+        },
+        "startUrlsCsv": {
+            "title": "CSV File With URLs",
+            "type": "string",
+            "description": "Optional path to a CSV file (or raw CSV text) containing URLs to seed"
+        },
+        "autoDiscoverSitemaps": {
+            "title": "Auto-Discover Sitemaps",
+            "type": "boolean",
+            "description": "Try to find sitemap URLs via robots.txt for each start URL",
+            "default": true
+        },
+        "maxSitemapUrls": {
+            "title": "Max Sitemap URLs",
+            "type": "integer",
+            "description": "Limit of URLs to load from sitemaps",
+            "default": 2000,
+            "minimum": 1
+        },
+        "maxSeedUrls": {
+            "title": "Max Seed URLs",
+            "type": "integer",
+            "description": "Cap the total number of seed URLs before crawling begins",
+            "default": 200,
+            "minimum": 1
+        },
+        "maxPagesPerCrawl": {
+            "title": "Max Pages Per Crawl",
+            "type": "integer",
+            "description": "Maximum number of pages to crawl",
+            "default": 1000,
+            "minimum": 1
+        },
+        "maxConcurrency": {
+            "title": "Max Concurrency",
+            "type": "integer",
+            "description": "Number of parallel browser instances",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+        },
+        "logResultsToConsole": {
+            "title": "Log Results To Console",
+            "type": "boolean",
+            "description": "Print a sample of saved records to the terminal when the crawl finishes",
+            "default": true
+        },
+        "maxResultsToLog": {
+            "title": "Max Results To Log",
+            "type": "integer",
+            "description": "How many saved records to print to the terminal",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 100
+        },
+        "useProxy": {
+            "title": "Use Proxy",
+            "type": "boolean",
+            "description": "Enable Apify Proxy to avoid blocks (HIGHLY RECOMMENDED). Uses residential US proxies for anti-bot evasion.",
+            "default": true
+        },
+        "proxyConfiguration": {
+            "title": "Proxy Configuration",
+            "type": "object",
+            "description": "Advanced proxy settings (only modify if you know what you're doing)",
+            "default": { "useApifyProxy": true },
+            "editor": "proxy"
+        }
+    },
+    "required": []
+}
