@@ -309,12 +309,5 @@ The actor tracks and reports:
 
 ## 📄 License
 
-MIT
-
-## 👤 Author
-
-Senior JavaScript Automation Engineer
-
----
 
 **Built for production. Ready to scale. 🚀**
