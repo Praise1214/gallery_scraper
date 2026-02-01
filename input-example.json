@@ -59,7 +59,7 @@
   "startUrlsCsv": null,
   "autoDiscoverSitemaps": false,
   "maxSitemapUrls": 2000,
-  "maxSeedUrls": 10,
+  "maxSeedUrls": 3,
   "maxPagesPerCrawl": 500,
   "maxConcurrency": 5,
   "logResultsToConsole": true,

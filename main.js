@@ -896,51 +896,8 @@ Actor.main(async () => {
                         }
                     }
 
-                    // Also try to find pagination or "next page" links
-                    await enqueueLinks({
-                        selector: 'a[href*="page"], a:has-text("Next"), a:has-text("More")',
-                        label: 'LISTING',
-                        limit: 10 // Limit pagination depth
-                    });
-
-                    // Discover more state/category listing pages on the same domain
-                    // ONLY discover actual listing/category pages, NOT gallery detail pages
-                    const baseDomain = getDomain(url);
-                    const listingLinks = await page.$$eval('a[href]', (anchors, baseDomainArg) => {
-                        return anchors
-                            .map(a => a.href)
-                            .filter((href) => {
-                                try {
-                                    const parsed = new URL(href);
-                                    const host = parsed.hostname.replace('www.', '').toLowerCase();
-                                    const path = parsed.pathname.toLowerCase();
-                                    if (!baseDomainArg || host !== baseDomainArg) return false;
-
-                                    const segments = path.split('/').filter(Boolean);
-
-                                    // State listing pages: /states/california/ (exactly 2 segments starting with 'states')
-                                    if (segments.length === 2 && segments[0] === 'states') return true;
-
-                                    // Skip gallery detail pages (3+ segments that look like /state/city/gallery-name/)
-                                    // These are NOT listings
-                                    if (segments.length >= 3) return false;
-
-                                    // Other listing keywords at top level
-                                    const keywords = ['galleries', 'directory', 'listing', 'listings', 'art-galleries'];
-                                    return keywords.some((kw) => path.includes(kw));
-                                } catch {
-                                    return false;
-                                }
-                            });
-                    }, baseDomain);
-
-                    const uniqueListingLinks = [...new Set(listingLinks)].slice(0, 50);
-                    if (uniqueListingLinks.length > 0) {
-                        await crawler.addRequests(uniqueListingLinks.map((link) => ({
-                            url: link,
-                            userData: { label: 'LISTING' }
-                        })));
-                    }
+                    // NOTE: Disabled automatic listing discovery - all state URLs are in input file
+                    // This ensures crawler focuses on gallery detail pages and their websites
                 }
 
                 // ═══════════════════════════════════════════════════════════════
