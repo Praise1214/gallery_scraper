@@ -5,7 +5,9 @@
       "Bash(npm run start:*)",
       "Bash(tee:*)",
       "Bash(cat:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)"
     ]
   }
 }

@@ -976,29 +976,31 @@ Actor.main(async () => {
                             sourceUrl: url
                         };
 
-                        log.info(`📞 Found: ${galleryRecord.emails.length} emails, ${galleryRecord.phoneNumbers.length} phones, website: ${galleryRecord.website || 'none'}`);
+                        log.info(`📞 Directory page - Emails: ${galleryRecord.emails.length}, Phones: ${galleryRecord.phoneNumbers.length}, Website: ${galleryRecord.website || 'none'}`);
 
-                        // Save if we have any contact info
-                        if (galleryRecord.emails.length > 0 || galleryRecord.phoneNumbers.length > 0 || galleryRecord.website) {
-                            await saveGalleryData(galleryRecord, dataset, stats);
-                        }
-
-                        // Optionally follow the external gallery website for more contact info
+                        // If there's a website, visit it to get email (DON'T save yet - wait for website scrape)
                         if (contactInfo.website && !processedDomains.has(getDomain(contactInfo.website))) {
                             processedDomains.add(getDomain(contactInfo.website));
+                            log.info(`🌐 Following gallery website for email: ${contactInfo.website}`);
                             await crawler.addRequests([{
                                 url: contactInfo.website,
                                 userData: {
                                     label: 'GALLERY_HOME',
                                     galleryData: {
-                                        galleryName: contactInfo.galleryName || galleryData.galleryName,
+                                        galleryName: galleryRecord.galleryName,
                                         website: contactInfo.website,
+                                        address: galleryRecord.address,
                                         sourceUrl: url,
                                         emails: [...galleryRecord.emails],
                                         phoneNumbers: [...galleryRecord.phoneNumbers]
                                     }
                                 }
                             }]);
+                        } else {
+                            // No website to visit, save what we have from directory
+                            if (galleryRecord.emails.length > 0 || galleryRecord.phoneNumbers.length > 0) {
+                                await saveGalleryData(galleryRecord, dataset, stats);
+                            }
                         }
                     }
                 }
@@ -1020,37 +1022,56 @@ Actor.main(async () => {
                     galleryData.website = galleryData.website || url;
                     galleryData.sourceUrl = galleryData.sourceUrl || url;
 
-                    log.info(`🏛️ Processing gallery homepage: ${galleryData.galleryName}`);
-                    stats.galleriesProcessed++;
+                    log.info(`🌐 Scraping gallery website for EMAIL: ${galleryData.galleryName} - ${url}`);
 
                     // Extract text content from homepage
                     const pageText = await extractPageText(page);
-                    
-                    // Extract contact info from homepage
+
+                    // Extract contact info from homepage - THIS IS WHERE WE GET EMAILS!
                     const homeEmails = extractEmails(pageText);
                     const homePhones = extractPhoneNumbers(pageText);
-                    
-                    galleryData.emails.push(...homeEmails);
+
+                    // Also look for mailto: links specifically
+                    const mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
+                        return links.map(link => {
+                            const email = link.href.replace('mailto:', '').split('?')[0].trim();
+                            return email.toLowerCase();
+                        }).filter(e => e.includes('@'));
+                    });
+
+                    galleryData.emails.push(...homeEmails, ...mailtoEmails);
                     galleryData.phoneNumbers.push(...homePhones);
 
-                    log.info(`Homepage contacts - Emails: ${homeEmails.length}, Phones: ${homePhones.length}`);
+                    log.info(`📧 Website emails found: ${homeEmails.length} from text, ${mailtoEmails.length} from mailto links`);
 
-                    // Find and enqueue contact pages
+                    // Find and enqueue contact pages for MORE emails
                     const contactLinks = await findContactLinks(page, url);
-                    
-                    for (const contactUrl of contactLinks) {
-                        await crawler.addRequests([{
-                            url: contactUrl,
-                            userData: {
-                                label: 'CONTACT_PAGE',
-                                galleryData: { ...galleryData }
-                            }
-                        }]);
-                    }
 
-                    // If no contact pages found, save what we have
-                    if (contactLinks.length === 0) {
-                        await saveGalleryData(galleryData, dataset, stats);
+                    if (contactLinks.length > 0) {
+                        log.info(`📄 Found ${contactLinks.length} contact pages to check for more emails`);
+                        for (const contactUrl of contactLinks) {
+                            await crawler.addRequests([{
+                                url: contactUrl,
+                                userData: {
+                                    label: 'CONTACT_PAGE',
+                                    galleryData: { ...galleryData }
+                                }
+                            }]);
+                        }
+                    } else {
+                        // No contact pages - save what we have NOW
+                        const uniqueEmails = [...new Set(galleryData.emails)];
+                        const uniquePhones = [...new Set(galleryData.phoneNumbers)];
+
+                        log.info(`💾 Saving gallery: ${galleryData.galleryName} - ${uniqueEmails.length} emails, ${uniquePhones.length} phones`);
+
+                        if (uniqueEmails.length > 0 || uniquePhones.length > 0 || galleryData.website) {
+                            await saveGalleryData({
+                                ...galleryData,
+                                emails: uniqueEmails,
+                                phoneNumbers: uniquePhones
+                            }, dataset, stats);
+                        }
                     }
                 }
 
@@ -1059,23 +1080,45 @@ Actor.main(async () => {
                 // ═══════════════════════════════════════════════════════════════
                 
                 else if (actualLabel === 'CONTACT_PAGE') {
-                    log.info(`📞 Processing contact page for: ${galleryData.galleryName}`);
+                    log.info(`📄 Processing CONTACT PAGE for: ${galleryData.galleryName} - ${url}`);
                     stats.contactPagesVisited++;
 
                     // Extract text content
                     const pageText = await extractPageText(page);
-                    
-                    // Extract contact info
-                    const emails = extractEmails(pageText);
-                    const phones = extractPhoneNumbers(pageText);
-                    
-                    galleryData.emails.push(...emails);
-                    galleryData.phoneNumbers.push(...phones);
 
-                    log.info(`Contact page - Emails: ${emails.length}, Phones: ${phones.length}`);
+                    // Extract contact info from text
+                    const textEmails = extractEmails(pageText);
+                    const textPhones = extractPhoneNumbers(pageText);
 
-                    // Save the gallery data (will be deduplicated)
-                    await saveGalleryData(galleryData, dataset, stats);
+                    // Also extract mailto: links directly
+                    const mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
+                        return links.map(link => {
+                            const email = link.href.replace('mailto:', '').split('?')[0].trim();
+                            return email.toLowerCase();
+                        }).filter(e => e.includes('@'));
+                    });
+
+                    galleryData.emails = galleryData.emails || [];
+                    galleryData.phoneNumbers = galleryData.phoneNumbers || [];
+
+                    galleryData.emails.push(...textEmails, ...mailtoEmails);
+                    galleryData.phoneNumbers.push(...textPhones);
+
+                    // Deduplicate
+                    const uniqueEmails = [...new Set(galleryData.emails)];
+                    const uniquePhones = [...new Set(galleryData.phoneNumbers)];
+
+                    log.info(`📧 Contact page emails: ${textEmails.length} from text, ${mailtoEmails.length} from mailto`);
+                    log.info(`💾 FINAL SAVE: ${galleryData.galleryName} - ${uniqueEmails.length} emails, ${uniquePhones.length} phones`);
+
+                    // Save the gallery data with all collected info
+                    if (uniqueEmails.length > 0 || uniquePhones.length > 0 || galleryData.website) {
+                        await saveGalleryData({
+                            ...galleryData,
+                            emails: uniqueEmails,
+                            phoneNumbers: uniquePhones
+                        }, dataset, stats);
+                    }
                 }
 
             } catch (error) {
