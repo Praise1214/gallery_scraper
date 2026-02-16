@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery Scraper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sand: #f5f0e8;
+            --sand-dark: #e8e0d0;
+            --ink: #1a1a17;
+            --ink-light: #6b6b63;
+            --ink-faint: #a8a89e;
+            --cream: #faf8f4;
+            --white: #ffffff;
+            --accent: #c45a3c;
+            --accent-light: #f9ebe6;
+            --green: #2d8a4e;
+            --green-light: #e6f4ec;
+            --border: #ddd8cc;
+            --border-light: #eae5da;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--sand);
+            color: var(--ink);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            background: var(--ink);
+            color: var(--sand);
+            padding: 14px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .topbar-mark {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        .topbar-title {
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: -0.2px;
+        }
+
+        .topbar-title span {
+            color: var(--ink-faint);
+            font-weight: 400;
+        }
+
+        .topbar-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--ink-faint);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--ink-faint);
+            transition: background 0.3s;
+        }
+
+        .status-dot.running {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        .status-dot.stopped { background: var(--ink-faint); }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── LAYOUT ── */
+        .layout {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 32px 24px 64px;
+        }
+
+        /* ── CONTROLS BAR ── */
+        .controls {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 130px;
+        }
+
+        .field label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--ink-light);
+        }
+
+        .field input {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--cream);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--ink);
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .controls-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .btn-start {
+            background: var(--ink);
+            color: var(--sand);
+        }
+        .btn-start:hover:not(:disabled) { background: #2a2a25; }
+
+        .btn-stop {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-stop:hover:not(:disabled) { background: #b04e32; }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--ink-light);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--cream);
+            color: var(--ink);
+        }
+
+        /* ── STATS ROW ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 640px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .stat {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 22px;
+        }
+
+        .stat-val {
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -1.5px;
+            line-height: 1;
+            color: var(--ink);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--ink-light);
+            margin-top: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── PANELS ── */
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .panels { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-head {
+            padding: 16px 22px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-head h2 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--ink-light);
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        .panel-body {
+            padding: 16px 22px;
+            max-height: 480px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* ── LOG ── */
+        .log {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.9;
+            color: var(--ink-light);
+        }
+
+        .log .line {
+            padding: 2px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        /* ── TABLE ── */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .results-table th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--ink-faint);
+            background: var(--cream);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+
+        .results-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--ink);
+        }
+
+        .results-table tr:hover td {
+            background: var(--cream);
+        }
+
+        .results-table a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .results-table a:hover { text-decoration: underline; }
+
+        .truncate {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .muted { color: var(--ink-faint); }
+
+        /* ── EMPTY STATE ── */
+        .empty {
+            text-align: center;
+            padding: 56px 20px;
+            color: var(--ink-faint);
+            font-size: 13px;
+        }
+
+        .empty-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--sand);
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* ── SPINNER ── */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── SCROLLBAR ── */
+        .panel-body::-webkit-scrollbar { width: 6px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-mark">GS</div>
+            <div class="topbar-title">Gallery Scraper <span>/ US Art Directories</span></div>
+        </div>
+        <div class="topbar-status">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Idle</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="controls">
+            <div class="field">
+                <label for="maxSeedUrls">States</label>
+                <input type="number" id="maxSeedUrls" value="3" min="1" max="50">
+            </div>
+            <div class="field">
+                <label for="maxPages">Max Pages</label>
+                <input type="number" id="maxPages" value="100" min="10" max="1000">
+            </div>
+            <div class="controls-actions">
+                <button id="scrapeBtn" class="btn btn-start" onclick="startScraper()">Start Scraping</button>
+                <button id="stopBtn" class="btn btn-stop" onclick="stopScraper()" disabled>Stop</button>
+                <button id="downloadBtn" class="btn btn-ghost" onclick="downloadResults()" disabled>Download JSON</button>
+                <button class="btn btn-ghost" onclick="clearResults()">Clear</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-val" id="statGalleries">0</div>
+                <div class="stat-label">Galleries Found</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val" id="statProcessed">0</div>
+                <div class="stat-label">Processed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val" id="statEmails">0</div>
+                <div class="stat-label">Emails Found</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val" id="statPhones">0</div>
+                <div class="stat-label">Phone Numbers</div>
+            </div>
+        </div>
+
+        <div class="panels">
+            <div class="panel">
+                <div class="panel-head">
+                    <h2>Activity Log</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="log" id="progressLog">
+                        <div class="empty">
+                            <div class="empty-icon">~</div>
+                            <p>Waiting to start</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <h2>Results</h2>
+                    <span id="resultCount" class="badge">0 galleries</span>
+                </div>
+                <div class="panel-body">
+                    <div id="resultsContainer">
+                        <div class="empty">
+                            <div class="empty-icon">0</div>
+                            <p>No results yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pollInterval = null;
+        let isScraperRunning = false;
+
+        async function startScraper() {
+            const maxSeedUrls = parseInt(document.getElementById('maxSeedUrls').value) || 3;
+            const maxPagesPerCrawl = parseInt(document.getElementById('maxPages').value) || 100;
+
+            const scrapeBtn = document.getElementById('scrapeBtn');
+            scrapeBtn.disabled = true;
+            scrapeBtn.textContent = 'Starting...';
+
+            try {
+                const response = await fetch('/api/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ maxSeedUrls, maxPagesPerCrawl })
+                });
+
+                if (response.ok) {
+                    isScraperRunning = true;
+                    setRunningUI(true);
+                    startPolling();
+                } else {
+                    const data = await response.json();
+                    // If server thinks it's running but we don't, force a reset
+                    if (data.error && data.error.includes('already running')) {
+                        // Try to stop first, then start again
+                        await fetch('/api/stop', { method: 'POST' });
+                        scrapeBtn.disabled = false;
+                        scrapeBtn.textContent = 'Start Scraping';
+                        alert('Previous session was stuck. Cleaned up. Try again.');
+                    } else {
+                        alert(data.error || 'Failed to start scraper');
+                        scrapeBtn.disabled = false;
+                        scrapeBtn.textContent = 'Start Scraping';
+                    }
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+                scrapeBtn.disabled = false;
+                scrapeBtn.textContent = 'Start Scraping';
+            }
+        }
+
+        async function stopScraper() {
+            const stopBtn = document.getElementById('stopBtn');
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '<span class="spinner"></span> Stopping';
+
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+            } catch (err) {
+                console.error('Error stopping:', err);
+            }
+
+            // Always reset UI regardless of response
+            stopPolling();
+            isScraperRunning = false;
+            setRunningUI(false);
+            document.getElementById('statusDot').className = 'status-dot stopped';
+            document.getElementById('statusText').textContent = 'Stopped';
+            fetchResults();
+        }
+
+        function setRunningUI(running) {
+            document.getElementById('scrapeBtn').disabled = running;
+            document.getElementById('scrapeBtn').textContent = 'Start Scraping';
+            document.getElementById('stopBtn').disabled = !running;
+            document.getElementById('stopBtn').textContent = 'Stop';
+        }
+
+        function downloadResults() {
+            window.location.href = '/api/download';
+        }
+
+        async function clearResults() {
+            if (!confirm('Clear all results?')) return;
+            try {
+                await fetch('/api/clear', { method: 'POST' });
+                updateUI({
+                    isRunning: false,
+                    stats: { galleriesFound: 0, galleriesProcessed: 0, emailsFound: 0, phonesFound: 0 },
+                    recentProgress: [],
+                    resultCount: 0
+                });
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="empty">
+                        <div class="empty-icon">0</div>
+                        <p>No results yet</p>
+                    </div>`;
+            } catch (err) {
+                console.error('Error clearing:', err);
+            }
+        }
+
+        function startPolling() {
+            stopPolling();
+            pollInterval = setInterval(fetchStatus, 1000);
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                updateUI(data);
+
+                if (!data.isRunning) {
+                    stopPolling();
+                    isScraperRunning = false;
+                    setRunningUI(false);
+                    fetchResults();
+                }
+            } catch (err) {
+                console.error('Error fetching status:', err);
+            }
+        }
+
+        async function fetchResults() {
+            try {
+                const response = await fetch('/api/results');
+                const results = await response.json();
+                renderResults(results);
+            } catch (err) {
+                console.error('Error fetching results:', err);
+            }
+        }
+
+        function updateUI(data) {
+            document.getElementById('statGalleries').textContent = data.stats.galleriesFound;
+            document.getElementById('statProcessed').textContent = data.stats.galleriesProcessed;
+            document.getElementById('statEmails').textContent = data.stats.emailsFound;
+            document.getElementById('statPhones').textContent = data.stats.phonesFound;
+
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            if (data.isRunning) {
+                statusDot.className = 'status-dot running';
+                statusText.textContent = 'Running';
+            } else {
+                statusDot.className = 'status-dot stopped';
+                statusText.textContent = 'Idle';
+            }
+
+            const progressLog = document.getElementById('progressLog');
+            if (data.recentProgress && data.recentProgress.length > 0) {
+                progressLog.innerHTML = data.recentProgress
+                    .map(line => `<div class="line">${escapeHtml(line)}</div>`)
+                    .join('');
+                progressLog.scrollTop = progressLog.scrollHeight;
+            }
+
+            document.getElementById('resultCount').textContent = `${data.resultCount} galleries`;
+            document.getElementById('downloadBtn').disabled = data.resultCount === 0;
+        }
+
+        function renderResults(results) {
+            const container = document.getElementById('resultsContainer');
+
+            if (!results || results.length === 0) {
+                container.innerHTML = `
+                    <div class="empty">
+                        <div class="empty-icon">0</div>
+                        <p>No results yet</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Gallery</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Website</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${results.map(r => `
+                            <tr>
+                                <td>${escapeHtml(r.galleryName || 'Unknown')}</td>
+                                <td>${r.emails && r.emails.length > 0
+                                    ? `<a href="mailto:${encodeURI(r.emails[0])}">${escapeHtml(r.emails[0])}</a>`
+                                    : '<span class="muted">&mdash;</span>'}</td>
+                                <td>${r.phoneNumbers && r.phoneNumbers.length > 0
+                                    ? escapeHtml(r.phoneNumbers[0])
+                                    : '<span class="muted">&mdash;</span>'}</td>
+                                <td><span class="truncate">${r.website
+                                    ? `<a href="${escapeHtml(r.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.website.replace(/^https?:\/\//, ''))}</a>`
+                                    : '<span class="muted">&mdash;</span>'}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+
+            document.getElementById('resultCount').textContent = `${results.length} galleries`;
+            document.getElementById('downloadBtn').disabled = results.length === 0;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function initialLoad() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                updateUI(data);
+
+                if (data.isRunning) {
+                    isScraperRunning = true;
+                    setRunningUI(true);
+                    startPolling();
+                } else {
+                    isScraperRunning = false;
+                    setRunningUI(false);
+                }
+
+                fetchResults();
+            } catch (err) {
+                console.error('Error during initial load:', err);
+                setRunningUI(false);
+            }
+        }
+
+        initialLoad();
+    </script>
+</body>
+</html>

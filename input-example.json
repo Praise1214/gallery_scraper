@@ -67,5 +67,12 @@
   "useProxy": false,
   "proxyConfiguration": {
     "useApifyProxy": true
-  }
+  },
+
+  "_comment_sheets": "=== GOOGLE SHEETS EXPORT CONFIG (for Make.com automation) ===",
+  "googleSheetsExport": true,
+  "googleSpreadsheetId": "YOUR_SPREADSHEET_ID_HERE",
+  "googleSheetName": "Galleries",
+  "googleClientEmail": "YOUR_SERVICE_ACCOUNT_EMAIL@project.iam.gserviceaccount.com",
+  "googlePrivateKey": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
 }

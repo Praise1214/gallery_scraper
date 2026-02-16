@@ -6,9 +6,14 @@ package-lock.json
 apify_storage/
 storage/
 
-# Environment variables
+# Environment variables & credentials
 .env
 .env.local
+.env.production
+test-sheets-config.json
+*credentials*.json
+*service-account*.json
+*private-key*
 
 # Logs
 *.log

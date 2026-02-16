@@ -13,7 +13,220 @@
 
 import { Actor } from 'apify';
 import { PlaywrightCrawler, Dataset } from 'crawlee';
+import { google } from 'googleapis';
 import fs from 'fs';
+
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE SHEETS INTEGRATION
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Google Sheets export helper
+ * Pushes gallery data to a Google Sheet for Make.com automation
+ */
+class GoogleSheetsExporter {
+    constructor(config = {}) {
+        this.spreadsheetId = config.spreadsheetId || null;
+        this.sheetName = config.sheetName || 'Galleries';
+        this.privateKey = config.googlePrivateKey || null;
+        this.clientEmail = config.googleClientEmail || null;
+        this.enabled = !!(this.spreadsheetId && this.privateKey && this.clientEmail);
+        this.buffer = [];
+        this.flushInterval = config.flushInterval || 10; // Push every 10 records
+        this.headerWritten = false;
+    }
+
+    /**
+     * Add a gallery record to the buffer
+     */
+    async addRecord(galleryData) {
+        if (!this.enabled) return;
+
+        // Format for Google Sheet columns (matches Make.com automation schema)
+        const record = {
+            gallery_name: galleryData.galleryName || '',
+            email: (galleryData.emails || [])[0] || '', // Primary email
+            all_emails: (galleryData.emails || []).join(', '),
+            website: galleryData.website || '',
+            phone: (galleryData.phoneNumbers || [])[0] || '', // Primary phone
+            all_phones: (galleryData.phoneNumbers || []).join(', '),
+            address: galleryData.address || '',
+            city: this.extractCity(galleryData.address || galleryData.sourceUrl),
+            state: this.extractState(galleryData.address || galleryData.sourceUrl),
+            source_url: galleryData.sourceUrl || '',
+            scraped_at: new Date().toISOString(),
+            // Automation columns (initialized with defaults for Make.com)
+            status: '',
+            sequence_step: 0,
+            last_contact_date: '',
+            response_date: '',
+            unsubscribe: 'FALSE',
+            do_not_contact: 'FALSE',
+            notes: ''
+        };
+
+        this.buffer.push(record);
+
+        // Flush if buffer is full
+        if (this.buffer.length >= this.flushInterval) {
+            await this.flush();
+        }
+    }
+
+    /**
+     * Extract city from address or URL
+     */
+    extractCity(addressOrUrl) {
+        if (!addressOrUrl) return '';
+
+        // Try to extract from URL pattern like /state/city/gallery/
+        const urlMatch = addressOrUrl.match(/\/([a-z-]+)\/([a-z-]+)\/[^/]+\/?$/i);
+        if (urlMatch && urlMatch[2]) {
+            return urlMatch[2].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        // Try to extract from address (City, ST pattern)
+        const addressMatch = addressOrUrl.match(/([A-Za-z\s]+),\s*[A-Z]{2}/);
+        if (addressMatch && addressMatch[1]) {
+            return addressMatch[1].trim();
+        }
+
+        return '';
+    }
+
+    /**
+     * Extract state from address or URL
+     */
+    extractState(addressOrUrl) {
+        if (!addressOrUrl) return '';
+
+        // Try to extract from URL pattern like /state/city/gallery/
+        const urlMatch = addressOrUrl.match(/\/([a-z-]+)\/[a-z-]+\/[^/]+\/?$/i);
+        if (urlMatch && urlMatch[1]) {
+            const state = urlMatch[1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            // Return state abbreviation if we can map it
+            return this.getStateAbbreviation(state) || state;
+        }
+
+        // Try to extract from address (City, ST pattern)
+        const addressMatch = addressOrUrl.match(/,\s*([A-Z]{2})\b/);
+        if (addressMatch && addressMatch[1]) {
+            return addressMatch[1];
+        }
+
+        return '';
+    }
+
+    /**
+     * Get state abbreviation from full name
+     */
+    getStateAbbreviation(stateName) {
+        const states = {
+            'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR',
+            'california': 'CA', 'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE',
+            'florida': 'FL', 'georgia': 'GA', 'hawaii': 'HI', 'idaho': 'ID',
+            'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA', 'kansas': 'KS',
+            'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+            'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS',
+            'missouri': 'MO', 'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV',
+            'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+            'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH', 'oklahoma': 'OK',
+            'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+            'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT',
+            'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV',
+            'wisconsin': 'WI', 'wyoming': 'WY'
+        };
+        return states[stateName.toLowerCase()] || '';
+    }
+
+    /**
+     * Initialize Google Sheets API client
+     */
+    async initSheetsClient() {
+        if (this.sheetsClient) return this.sheetsClient;
+
+        const auth = new google.auth.JWT(
+            this.clientEmail,
+            null,
+            this.privateKey.replace(/\\n/g, '\n'),
+            ['https://www.googleapis.com/auth/spreadsheets']
+        );
+
+        this.sheetsClient = google.sheets({ version: 'v4', auth });
+        return this.sheetsClient;
+    }
+
+    /**
+     * Flush buffer to Google Sheets using direct API
+     */
+    async flush() {
+        if (!this.enabled || this.buffer.length === 0) return;
+
+        try {
+            console.log(`📊 Pushing ${this.buffer.length} records to Google Sheets...`);
+
+            const sheets = await this.initSheetsClient();
+
+            // Column headers
+            const HEADERS = [
+                'gallery_name', 'email', 'all_emails', 'website', 'phone', 'all_phones',
+                'address', 'city', 'state', 'source_url', 'scraped_at',
+                'status', 'sequence_step', 'last_contact_date', 'response_date',
+                'unsubscribe', 'do_not_contact', 'notes'
+            ];
+
+            // Write headers if first time
+            if (!this.headerWritten) {
+                // Check if headers exist
+                const headerCheck = await sheets.spreadsheets.values.get({
+                    spreadsheetId: this.spreadsheetId,
+                    range: `${this.sheetName}!A1:R1`
+                });
+
+                if (!headerCheck.data.values || headerCheck.data.values.length === 0) {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: this.spreadsheetId,
+                        range: `${this.sheetName}!A1`,
+                        valueInputOption: 'RAW',
+                        requestBody: { values: [HEADERS] }
+                    });
+                    console.log('   ✅ Header row written');
+                }
+                this.headerWritten = true;
+            }
+
+            // Convert buffer to rows
+            const dataRows = this.buffer.map(record =>
+                HEADERS.map(header => record[header] !== undefined ? record[header] : '')
+            );
+
+            // Append data
+            await sheets.spreadsheets.values.append({
+                spreadsheetId: this.spreadsheetId,
+                range: `${this.sheetName}!A:R`,
+                valueInputOption: 'RAW',
+                insertDataOption: 'INSERT_ROWS',
+                requestBody: { values: dataRows }
+            });
+
+            console.log(`✅ Successfully pushed ${this.buffer.length} records to Google Sheets`);
+            this.buffer = [];
+
+        } catch (error) {
+            console.error(`❌ Failed to push to Google Sheets: ${error.message}`);
+            // Keep buffer for retry on next flush
+        }
+    }
+
+    /**
+     * Final flush - call at end of scraping
+     */
+    async finalFlush() {
+        if (this.buffer.length > 0) {
+            await this.flush();
+        }
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION & CONSTANTS
@@ -592,8 +805,40 @@ Actor.main(async () => {
         maxConcurrency = 5,
         logResultsToConsole = true,
         maxResultsToLog = 20,
-        proxyConfiguration = { useApifyProxy: true }
+        proxyConfiguration = { useApifyProxy: true },
+        // Google Sheets export configuration
+        googleSheetsExport = false,
+        googleSpreadsheetId = null,
+        googleSheetName = 'Galleries',
+        googleClientEmail = null,
+        googlePrivateKey = null
     } = input;
+
+    // ═══════════════════════════════════════════════════════════════
+    // GOOGLE SHEETS EXPORT SETUP
+    // ═══════════════════════════════════════════════════════════════
+
+    let sheetsExporter = null;
+    if (googleSheetsExport && googleSpreadsheetId) {
+        sheetsExporter = new GoogleSheetsExporter({
+            spreadsheetId: googleSpreadsheetId,
+            sheetName: googleSheetName,
+            googleClientEmail,
+            googlePrivateKey,
+            flushInterval: 10 // Push every 10 records
+        });
+
+        if (sheetsExporter.enabled) {
+            console.log(`📊 Google Sheets export ENABLED`);
+            console.log(`   - Spreadsheet ID: ${googleSpreadsheetId}`);
+            console.log(`   - Sheet name: ${googleSheetName}`);
+        } else {
+            console.log('⚠️  Google Sheets export configured but missing credentials');
+            console.log('   Required: googleClientEmail, googlePrivateKey');
+        }
+    } else {
+        console.log('📊 Google Sheets export: disabled (set googleSheetsExport: true to enable)');
+    }
 
     let seedUrls = await buildSeedUrls({
         startUrls,
@@ -935,7 +1180,7 @@ Actor.main(async () => {
 
                         log.info(`📞 Directory page - Emails: ${galleryRecord.emails.length}, Phones: ${galleryRecord.phoneNumbers.length}, Website: ${galleryRecord.website || 'none'}`);
 
-                        // If there's a website, visit it to get email (DON'T save yet - wait for website scrape)
+                        // If there's a website, visit it to get email
                         if (contactInfo.website && !processedDomains.has(getDomain(contactInfo.website))) {
                             processedDomains.add(getDomain(contactInfo.website));
                             log.info(`🌐 Following gallery website for email: ${contactInfo.website}`);
@@ -955,7 +1200,7 @@ Actor.main(async () => {
                             }]);
                         } else {
                             // No website to visit, save what we have from directory
-                            if (galleryRecord.emails.length > 0 || galleryRecord.phoneNumbers.length > 0) {
+                            if (galleryRecord.emails.length > 0 || galleryRecord.phoneNumbers.length > 0 || galleryRecord.website) {
                                 await saveGalleryData(galleryRecord, dataset, stats);
                             }
                         }
@@ -989,12 +1234,17 @@ Actor.main(async () => {
                     const homePhones = extractPhoneNumbers(pageText);
 
                     // Also look for mailto: links specifically
-                    const mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
-                        return links.map(link => {
-                            const email = link.href.replace('mailto:', '').split('?')[0].trim();
-                            return email.toLowerCase();
-                        }).filter(e => e.includes('@'));
-                    });
+                    let mailtoEmails = [];
+                    try {
+                        mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
+                            return links.map(link => {
+                                const email = link.href.replace('mailto:', '').split('?')[0].trim();
+                                return email.toLowerCase();
+                            }).filter(e => e.includes('@'));
+                        });
+                    } catch (e) {
+                        // No mailto links found, that's ok
+                    }
 
                     galleryData.emails.push(...homeEmails, ...mailtoEmails);
                     galleryData.phoneNumbers.push(...homePhones);
@@ -1048,12 +1298,17 @@ Actor.main(async () => {
                     const textPhones = extractPhoneNumbers(pageText);
 
                     // Also extract mailto: links directly
-                    const mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
-                        return links.map(link => {
-                            const email = link.href.replace('mailto:', '').split('?')[0].trim();
-                            return email.toLowerCase();
-                        }).filter(e => e.includes('@'));
-                    });
+                    let mailtoEmails = [];
+                    try {
+                        mailtoEmails = await page.$$eval('a[href^="mailto:"]', (links) => {
+                            return links.map(link => {
+                                const email = link.href.replace('mailto:', '').split('?')[0].trim();
+                                return email.toLowerCase();
+                            }).filter(e => e.includes('@'));
+                        });
+                    } catch (e) {
+                        // No mailto links found
+                    }
 
                     galleryData.emails = galleryData.emails || [];
                     galleryData.phoneNumbers = galleryData.phoneNumbers || [];
@@ -1087,26 +1342,48 @@ Actor.main(async () => {
         // ERROR HANDLER - DETECT AND RECOVER FROM BLOCKS
         // ═══════════════════════════════════════════════════════════════
         
-        failedRequestHandler({ request, log }, error) {
-            const { url } = request;
+        async failedRequestHandler({ request, log }, error) {
+            const { url, userData = {} } = request;
+            const { label, galleryData } = userData;
             const errorMsg = error.message || '';
-            
+
+            // If a GALLERY_HOME or CONTACT_PAGE request failed, save whatever data we have
+            if ((label === 'GALLERY_HOME' || label === 'CONTACT_PAGE') && galleryData) {
+                log.warning(`⚠️ Website failed, saving with data from directory: ${galleryData.galleryName}`);
+                const uniqueEmails = [...new Set(galleryData.emails || [])];
+                const uniquePhones = [...new Set(galleryData.phoneNumbers || [])];
+
+                if (uniqueEmails.length > 0 || uniquePhones.length > 0 || galleryData.website) {
+                    await dataset.pushData({
+                        galleryName: galleryData.galleryName || 'Unknown',
+                        website: galleryData.website || '',
+                        emails: uniqueEmails,
+                        phoneNumbers: uniquePhones,
+                        address: galleryData.address || '',
+                        sourceUrl: galleryData.sourceUrl || '',
+                        scrapedAt: new Date().toISOString(),
+                        note: 'Website unreachable - data from directory only'
+                    });
+                    log.info(`💾 Saved (fallback): ${galleryData.galleryName}`);
+                }
+            }
+
             // Detect 403/429 blocks
             if (errorMsg.includes('403') || errorMsg.includes('429')) {
                 log.error(`🚫 BLOCKED: ${url}`, {
                     status: errorMsg.includes('403') ? '403 Forbidden' : '429 Too Many Requests',
                     error: errorMsg,
-                    suggestion: useProxy 
-                        ? 'Proxy rotation in effect, will retry with new IP' 
+                    suggestion: useProxy
+                        ? 'Proxy rotation in effect, will retry with new IP'
                         : 'Enable proxy with useProxy: true to avoid blocks'
                 });
-                
+
                 if (!useProxy) {
                     log.warning('💡 TIP: Add "useProxy": true to your input to enable IP rotation');
                 }
             } else {
-                log.error(`Request ${url} failed after ${request.retryCount} retries`, { 
-                    error: errorMsg 
+                log.error(`Request ${url} failed after ${request.retryCount} retries`, {
+                    error: errorMsg
                 });
             }
         },
@@ -1117,7 +1394,7 @@ Actor.main(async () => {
     // ═══════════════════════════════════════════════════════════════
     
     /**
-     * Save gallery data to dataset with deduplication
+     * Save gallery data to dataset AND Google Sheets with deduplication
      */
     async function saveGalleryData(data, dataset, stats) {
         // Deduplicate emails and phones
@@ -1126,7 +1403,7 @@ Actor.main(async () => {
 
         // Only save if we have at least some contact info (email, phone, OR website)
         if (uniqueEmails.length > 0 || uniquePhones.length > 0 || data.website) {
-            await dataset.pushData({
+            const galleryRecord = {
                 galleryName: data.galleryName || 'Unknown',
                 website: data.website || '',
                 emails: uniqueEmails,
@@ -1134,7 +1411,15 @@ Actor.main(async () => {
                 address: data.address || data.location || '',
                 sourceUrl: data.sourceUrl || '',
                 scrapedAt: new Date().toISOString()
-            });
+            };
+
+            // Save to Apify dataset
+            await dataset.pushData(galleryRecord);
+
+            // Also push to Google Sheets if enabled
+            if (sheetsExporter && sheetsExporter.enabled) {
+                await sheetsExporter.addRecord(galleryRecord);
+            }
 
             stats.emailsFound += uniqueEmails.length;
             stats.phonesFound += uniquePhones.length;
@@ -1183,6 +1468,16 @@ Actor.main(async () => {
 
     // Run the crawler
     await crawler.run();
+
+    // ═══════════════════════════════════════════════════════════════
+    // FINAL GOOGLE SHEETS FLUSH
+    // ═══════════════════════════════════════════════════════════════
+
+    if (sheetsExporter && sheetsExporter.enabled) {
+        console.log('📊 Final flush to Google Sheets...');
+        await sheetsExporter.finalFlush();
+        console.log('✅ Google Sheets export complete');
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // FINAL STATISTICS

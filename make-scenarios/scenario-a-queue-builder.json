@@ -1,0 +1,126 @@
+{
+  "name": "Art Gallery Outreach - A: Queue Builder",
+  "description": "Runs daily at 6 AM EST. Reads galleries from Google Sheets, filters for eligible contacts, and marks them as 'queued' for sending.",
+  "scheduling": {
+    "type": "interval",
+    "interval": 86400,
+    "time": "06:00",
+    "timezone": "America/New_York"
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-sheets:searchRows",
+      "name": "Search for Eligible Galleries",
+      "parameters": {
+        "spreadsheetId": "{{YOUR_SPREADSHEET_ID}}",
+        "sheetId": "Galleries",
+        "tableContainsHeaders": true,
+        "filter": {
+          "conditions": [
+            {
+              "column": "email",
+              "operator": "isNotEmpty"
+            },
+            {
+              "column": "status",
+              "operator": "textEquals",
+              "value": ""
+            },
+            {
+              "column": "unsubscribe",
+              "operator": "textEquals",
+              "value": "FALSE"
+            },
+            {
+              "column": "do_not_contact",
+              "operator": "textEquals",
+              "value": "FALSE"
+            }
+          ],
+          "logic": "AND"
+        },
+        "limit": "{{daily_send_limit}}",
+        "sortBy": "scraped_at",
+        "sortOrder": "asc"
+      },
+      "metadata": {
+        "notes": "Finds galleries with email, no status, not unsubscribed, not do_not_contact. Limit to daily send quota."
+      }
+    },
+    {
+      "id": 2,
+      "module": "iterator",
+      "name": "Iterate Over Eligible Galleries",
+      "parameters": {
+        "array": "{{1.bundles}}"
+      }
+    },
+    {
+      "id": 3,
+      "module": "google-sheets:updateRow",
+      "name": "Mark as Queued",
+      "parameters": {
+        "spreadsheetId": "{{YOUR_SPREADSHEET_ID}}",
+        "sheetId": "Galleries",
+        "rowNumber": "{{2.row_number}}",
+        "values": {
+          "status": "queued",
+          "sequence_step": 1
+        }
+      },
+      "metadata": {
+        "notes": "Sets status to 'queued' and sequence_step to 1 for first email in sequence"
+      }
+    },
+    {
+      "id": 4,
+      "module": "tools:setVariable",
+      "name": "Track Queue Count",
+      "parameters": {
+        "name": "queued_count",
+        "value": "{{length(1.bundles)}}"
+      }
+    },
+    {
+      "id": 5,
+      "module": "slack:postMessage",
+      "name": "Notify Queue Built (Optional)",
+      "parameters": {
+        "channel": "#outreach-notifications",
+        "text": ":email: Queue Builder: {{queued_count}} galleries queued for outreach today"
+      },
+      "optional": true
+    }
+  ],
+  "variables": {
+    "daily_send_limit": {
+      "type": "number",
+      "default": 50,
+      "description": "Max emails to queue per day (start low for warmup: 10-20)"
+    },
+    "YOUR_SPREADSHEET_ID": {
+      "type": "text",
+      "description": "Your Google Sheets spreadsheet ID from the URL"
+    }
+  },
+  "connections": {
+    "google-sheets": {
+      "type": "oauth2",
+      "service": "google",
+      "scopes": ["spreadsheets"]
+    },
+    "slack": {
+      "type": "oauth2",
+      "optional": true
+    }
+  },
+  "setup_instructions": [
+    "1. Import this blueprint into Make.com",
+    "2. Connect your Google account with Sheets access",
+    "3. Replace {{YOUR_SPREADSHEET_ID}} with your actual spreadsheet ID",
+    "4. Set daily_send_limit (start with 10-20 for email warmup)",
+    "5. Optionally connect Slack for notifications",
+    "6. Enable the scenario - it will run daily at 6 AM EST"
+  ]
+}

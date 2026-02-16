@@ -1,0 +1,213 @@
+<!--
+═══════════════════════════════════════════════════════════════
+ART GALLERY OUTREACH - EMAIL TEMPLATES
+═══════════════════════════════════════════════════════════════
+
+Available merge fields:
+  {{gallery_name}}  - Gallery name
+  {{city}}          - City
+  {{state}}         - State abbreviation
+  {{website}}       - Gallery website URL
+
+Include in all emails:
+  - Clear unsubscribe link
+  - Physical mailing address (CAN-SPAM requirement)
+
+═══════════════════════════════════════════════════════════════
+-->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TEMPLATE 1: INITIAL OUTREACH (sequence_step = 1)
+     ═══════════════════════════════════════════════════════════════ -->
+
+<div id="template-initial-outreach">
+  <h3>Subject: Collaboration opportunity with {{gallery_name}}</h3>
+
+  <div class="email-body">
+    <p>Hello,</p>
+
+    <p>I recently came across {{gallery_name}} while researching galleries in {{city}}, {{state}}, and I was impressed by your gallery's commitment to showcasing exceptional artwork.</p>
+
+    <p>I'm reaching out because I believe there may be an opportunity for us to collaborate. [CUSTOMIZE: Briefly explain what you offer - artist representation, art services, partnership opportunity, etc.]</p>
+
+    <p>I'd love to learn more about your current exhibition schedule and discuss how we might work together.</p>
+
+    <p>Would you be open to a brief 15-minute call this week or next?</p>
+
+    <p>Best regards,<br>
+    [Your Name]<br>
+    [Your Title]<br>
+    [Your Phone]<br>
+    [Your Website]</p>
+
+    <hr>
+    <p style="font-size: 11px; color: #666;">
+      You're receiving this email because {{gallery_name}} is listed on public art gallery directories.<br>
+      <a href="{{unsubscribe_link}}">Unsubscribe from future emails</a><br>
+      [Your Company Name] | [Your Address]
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TEMPLATE 2: FOLLOW-UP #1 (sequence_step = 2) - 5-7 days later
+     ═══════════════════════════════════════════════════════════════ -->
+
+<div id="template-followup-1">
+  <h3>Subject: Quick follow-up - {{gallery_name}}</h3>
+
+  <div class="email-body">
+    <p>Hi there,</p>
+
+    <p>I wanted to follow up on my email from last week regarding a potential collaboration with {{gallery_name}}.</p>
+
+    <p>I understand gallery operations can be incredibly busy, especially with exhibitions and artist relations. However, I genuinely believe we could create something valuable together.</p>
+
+    <p>[CUSTOMIZE: Add one specific value proposition or recent relevant news about your work]</p>
+
+    <p>Would you have 10 minutes for a quick phone call? I'm happy to work around your schedule.</p>
+
+    <p>Looking forward to hearing from you.</p>
+
+    <p>Best,<br>
+    [Your Name]<br>
+    [Your Phone]</p>
+
+    <hr>
+    <p style="font-size: 11px; color: #666;">
+      <a href="{{unsubscribe_link}}">Unsubscribe</a> | [Your Company] | [Your Address]
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TEMPLATE 3: FOLLOW-UP #2 / FINAL (sequence_step = 3) - 7-10 days later
+     ═══════════════════════════════════════════════════════════════ -->
+
+<div id="template-followup-2">
+  <h3>Subject: One last note - {{gallery_name}}</h3>
+
+  <div class="email-body">
+    <p>Hi,</p>
+
+    <p>This will be my last follow-up regarding {{gallery_name}}. I completely understand if now isn't the right time or if this isn't a fit for your gallery.</p>
+
+    <p>If you'd ever like to explore collaboration opportunities in the future, please don't hesitate to reach out. I'll be here.</p>
+
+    <p>Wishing {{gallery_name}} continued success with your exhibitions and artists.</p>
+
+    <p>All the best,<br>
+    [Your Name]<br>
+    [Your Email]<br>
+    [Your Phone]</p>
+
+    <hr>
+    <p style="font-size: 11px; color: #666;">
+      <a href="{{unsubscribe_link}}">Unsubscribe</a> | [Your Company] | [Your Address]
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     ALTERNATIVE TEMPLATES (choose based on your use case)
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- For Artists Seeking Representation -->
+<div id="template-artist-representation">
+  <h3>Subject: Artist portfolio submission for {{gallery_name}}</h3>
+
+  <div class="email-body">
+    <p>Dear {{gallery_name}} Team,</p>
+
+    <p>I'm a [medium] artist based in [location], and I've been following {{gallery_name}}'s exhibitions with great admiration, particularly your focus on [their specialty if known].</p>
+
+    <p>I'm reaching out to inquire about your submission process for artist representation. My work explores [brief 1-sentence description of your artistic focus].</p>
+
+    <p>I would be honored to share my portfolio for your consideration. You can view a selection of my work at [your website].</p>
+
+    <p>Thank you for your time and consideration.</p>
+
+    <p>Warmly,<br>
+    [Your Name]<br>
+    [Your Website]<br>
+    [Your Instagram/Social]</p>
+
+    <hr>
+    <p style="font-size: 11px; color: #666;">
+      <a href="{{unsubscribe_link}}">Unsubscribe</a> | [Your Address]
+    </p>
+  </div>
+</div>
+
+
+<!-- For Art Services/Vendors -->
+<div id="template-art-services">
+  <h3>Subject: Helping {{gallery_name}} with [specific service]</h3>
+
+  <div class="email-body">
+    <p>Hello,</p>
+
+    <p>I noticed {{gallery_name}} and wanted to reach out about [your service - framing, art shipping, insurance, marketing, etc.].</p>
+
+    <p>We work with galleries across {{state}} to help with [specific problem you solve]. Recently, we helped [similar gallery or general example] achieve [specific result].</p>
+
+    <p>I'd love to learn about your current needs and see if we might be able to help.</p>
+
+    <p>Would you be open to a quick 10-minute call?</p>
+
+    <p>Best regards,<br>
+    [Your Name]<br>
+    [Your Company]<br>
+    [Your Phone]</p>
+
+    <hr>
+    <p style="font-size: 11px; color: #666;">
+      <a href="{{unsubscribe_link}}">Unsubscribe</a> | [Your Company] | [Your Address]
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JSON FORMAT FOR MAKE.COM (copy this into your scenario)
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!--
+{
+  "templates": {
+    "initial_outreach": {
+      "subject": "Collaboration opportunity with {{gallery_name}}",
+      "body": "<p>Hello,</p><p>I recently came across {{gallery_name}} while researching galleries in {{city}}, {{state}}, and I was impressed by your gallery's commitment to showcasing exceptional artwork.</p><p>I'm reaching out because I believe there may be an opportunity for us to collaborate. [CUSTOMIZE YOUR PITCH HERE]</p><p>Would you be open to a brief 15-minute call this week or next?</p><p>Best regards,<br>[Your Name]<br>[Your Title]</p><hr><p style='font-size:11px;color:#666;'><a href='{{unsubscribe_link}}'>Unsubscribe</a> | [Your Company] | [Your Address]</p>"
+    },
+    "followup_1": {
+      "subject": "Quick follow-up - {{gallery_name}}",
+      "body": "<p>Hi there,</p><p>I wanted to follow up on my email from last week regarding a potential collaboration with {{gallery_name}}.</p><p>Would you have 10 minutes for a quick phone call? I'm happy to work around your schedule.</p><p>Best,<br>[Your Name]</p><hr><p style='font-size:11px;color:#666;'><a href='{{unsubscribe_link}}'>Unsubscribe</a> | [Your Company] | [Your Address]</p>"
+    },
+    "followup_2": {
+      "subject": "One last note - {{gallery_name}}",
+      "body": "<p>Hi,</p><p>This will be my last follow-up regarding {{gallery_name}}. If you'd ever like to explore collaboration opportunities in the future, please don't hesitate to reach out.</p><p>Wishing {{gallery_name}} continued success!</p><p>All the best,<br>[Your Name]</p><hr><p style='font-size:11px;color:#666;'><a href='{{unsubscribe_link}}'>Unsubscribe</a> | [Your Company] | [Your Address]</p>"
+    }
+  }
+}
+-->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BEST PRACTICES CHECKLIST
+     ═══════════════════════════════════════════════════════════════
+
+     [ ] Personalize with gallery name and location
+     [ ] Keep subject lines under 50 characters
+     [ ] Include clear unsubscribe link (CAN-SPAM requirement)
+     [ ] Include physical mailing address (CAN-SPAM requirement)
+     [ ] Don't use spam trigger words (FREE, ACT NOW, LIMITED TIME)
+     [ ] Keep emails concise (150-300 words ideal)
+     [ ] Include clear call-to-action
+     [ ] Test emails before sending at scale
+     [ ] Start with low volume for email warmup
+     [ ] Monitor bounce rates and spam complaints
+
+     ═══════════════════════════════════════════════════════════════ -->

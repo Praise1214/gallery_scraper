@@ -11,7 +11,15 @@
       "WebFetch(domain:www.chiltoncountyartscouncil.com)",
       "WebFetch(domain:www.cdagalleries.com)",
       "Bash(apify run:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:sheets:*)",
+      "Bash(npm start)",
+      "Bash(open http://localhost:3000)",
+      "Bash(for f in storage/datasets/default/*.json)",
+      "Bash(do cat \"$f\")",
+      "Bash(done)",
+      "Bash(node:*)"
     ]
   }
 }

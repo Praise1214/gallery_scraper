@@ -1,0 +1,19 @@
+{
+  "_instructions": "Copy this file to test-sheets-config.json and fill in your credentials",
+
+  "spreadsheetId": "PASTE_YOUR_SPREADSHEET_ID_HERE",
+  "sheetName": "Galleries",
+  "clientEmail": "PASTE_YOUR_SERVICE_ACCOUNT_EMAIL_HERE@YOUR_PROJECT.iam.gserviceaccount.com",
+  "privateKey": "-----BEGIN PRIVATE KEY-----\nPASTE_YOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n",
+
+  "_howToGetCredentials": {
+    "step1": "Go to https://console.cloud.google.com/",
+    "step2": "Create or select a project",
+    "step3": "Enable Google Sheets API: APIs & Services > Library > Google Sheets API",
+    "step4": "Create Service Account: APIs & Services > Credentials > Create Credentials > Service Account",
+    "step5": "Create JSON key: Click service account > Keys tab > Add Key > Create new key > JSON",
+    "step6": "Copy client_email and private_key from downloaded JSON file",
+    "step7": "Get spreadsheetId from your Google Sheet URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit",
+    "step8": "Share your Google Sheet with the service account email (give Editor access)"
+  }
+}

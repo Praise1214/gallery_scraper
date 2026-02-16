@@ -1,0 +1,272 @@
+{
+  "name": "Art Gallery Outreach - B: Send Email Worker (Brevo)",
+  "description": "Runs every 15 minutes (6 AM - 6 PM EST). Processes queued galleries and sends personalized emails via Brevo transactional API.",
+  "scheduling": {
+    "type": "interval",
+    "interval": 900,
+    "activeHours": {
+      "start": "06:00",
+      "end": "18:00"
+    },
+    "timezone": "America/New_York"
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-sheets:searchRows",
+      "name": "Get Queued Galleries",
+      "parameters": {
+        "spreadsheetId": "{{YOUR_SPREADSHEET_ID}}",
+        "sheetId": "Galleries",
+        "tableContainsHeaders": true,
+        "filter": {
+          "conditions": [
+            {
+              "column": "status",
+              "operator": "textEquals",
+              "value": "queued"
+            }
+          ]
+        },
+        "limit": "{{batch_size}}",
+        "sortBy": "sequence_step",
+        "sortOrder": "asc"
+      },
+      "metadata": {
+        "notes": "Get galleries with status='queued', limited to batch size"
+      }
+    },
+    {
+      "id": 2,
+      "module": "flow:router",
+      "name": "Check if Galleries Found",
+      "parameters": {
+        "routes": [
+          {
+            "condition": "{{length(1.bundles) > 0}}",
+            "label": "Has Galleries"
+          },
+          {
+            "condition": "{{length(1.bundles) == 0}}",
+            "label": "No Galleries - Exit"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "module": "iterator",
+      "name": "Iterate Over Queued Galleries",
+      "parameters": {
+        "array": "{{1.bundles}}"
+      },
+      "route": "Has Galleries"
+    },
+    {
+      "id": 4,
+      "module": "tools:setVariable",
+      "name": "Select Email Template",
+      "parameters": {
+        "name": "email_template",
+        "value": "{{switch(3.sequence_step; 1; templates.initial_outreach; 2; templates.followup_1; 3; templates.followup_2; templates.initial_outreach)}}"
+      },
+      "metadata": {
+        "notes": "Selects template based on sequence_step: 1=initial, 2=followup1, 3=followup2"
+      }
+    },
+    {
+      "id": 5,
+      "module": "tools:setVariable",
+      "name": "Personalize Email",
+      "parameters": {
+        "name": "personalized_email",
+        "value": {
+          "subject": "{{replace(replace(email_template.subject; '{{gallery_name}}'; 3.gallery_name); '{{city}}'; 3.city)}}",
+          "body": "{{replace(replace(replace(replace(email_template.body; '{{gallery_name}}'; 3.gallery_name); '{{city}}'; 3.city); '{{state}}'; 3.state); '{{website}}'; 3.website)}}"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "module": "http:makeRequest",
+      "name": "Send Email via Brevo API",
+      "parameters": {
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "method": "POST",
+        "headers": [
+          {
+            "key": "api-key",
+            "value": "{{brevo_api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "sender": {
+            "name": "{{sender_name}}",
+            "email": "{{sender_email}}"
+          },
+          "to": [
+            {
+              "email": "{{3.email}}",
+              "name": "{{3.gallery_name}}"
+            }
+          ],
+          "subject": "{{personalized_email.subject}}",
+          "htmlContent": "{{personalized_email.body}}",
+          "headers": {
+            "X-Mailin-custom": "gallery_outreach|row_{{3.row_number}}|seq_{{3.sequence_step}}"
+          },
+          "params": {
+            "gallery_name": "{{3.gallery_name}}",
+            "gallery_email": "{{3.email}}",
+            "row_number": "{{3.row_number}}"
+          }
+        },
+        "parseResponse": true
+      },
+      "errorHandler": {
+        "type": "retry",
+        "maxRetries": 2,
+        "retryInterval": 5000,
+        "fallback": "mark_failed"
+      }
+    },
+    {
+      "id": 7,
+      "module": "flow:router",
+      "name": "Check Send Result",
+      "parameters": {
+        "routes": [
+          {
+            "condition": "{{6.statusCode == 201}}",
+            "label": "Success"
+          },
+          {
+            "condition": "{{6.statusCode != 201}}",
+            "label": "Failed"
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "google-sheets:updateRow",
+      "name": "Mark as Sent",
+      "parameters": {
+        "spreadsheetId": "{{YOUR_SPREADSHEET_ID}}",
+        "sheetId": "Galleries",
+        "rowNumber": "{{3.row_number}}",
+        "values": {
+          "status": "sent",
+          "last_contact_date": "{{formatDate(now; 'YYYY-MM-DD HH:mm:ss')}}"
+        }
+      },
+      "route": "Success"
+    },
+    {
+      "id": 9,
+      "module": "google-sheets:updateRow",
+      "name": "Mark as Failed",
+      "parameters": {
+        "spreadsheetId": "{{YOUR_SPREADSHEET_ID}}",
+        "sheetId": "Galleries",
+        "rowNumber": "{{3.row_number}}",
+        "values": {
+          "status": "send_failed",
+          "notes": "Send failed: {{6.body.message}}"
+        }
+      },
+      "route": "Failed",
+      "id_alias": "mark_failed"
+    },
+    {
+      "id": 10,
+      "module": "tools:sleep",
+      "name": "Rate Limit Delay",
+      "parameters": {
+        "duration": "{{rate_limit_delay}}"
+      },
+      "metadata": {
+        "notes": "Wait between sends for email warmup and rate limiting"
+      }
+    }
+  ],
+  "variables": {
+    "YOUR_SPREADSHEET_ID": {
+      "type": "text",
+      "description": "Your Google Sheets spreadsheet ID"
+    },
+    "brevo_api_key": {
+      "type": "text",
+      "secret": true,
+      "description": "Your Brevo API key (from Settings > SMTP & API)"
+    },
+    "sender_name": {
+      "type": "text",
+      "default": "Your Name",
+      "description": "Sender display name"
+    },
+    "sender_email": {
+      "type": "text",
+      "description": "Your verified sender email in Brevo"
+    },
+    "batch_size": {
+      "type": "number",
+      "default": 5,
+      "description": "Max emails per 15-min run (warmup: start with 2-5)"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "default": 30,
+      "description": "Seconds between each email send"
+    },
+    "templates": {
+      "type": "object",
+      "description": "Email templates for each sequence step",
+      "default": {
+        "initial_outreach": {
+          "subject": "Collaboration opportunity with {{gallery_name}}",
+          "body": "<p>Hello,</p><p>I recently came across {{gallery_name}} and was impressed by your gallery's focus on showcasing exceptional artwork.</p><p>I'm reaching out because I believe there may be an opportunity for us to collaborate...</p><p>Would you be open to a brief conversation?</p><p>Best regards</p><p><a href='{{unsubscribe_link}}'>Unsubscribe</a></p>"
+        },
+        "followup_1": {
+          "subject": "Following up - {{gallery_name}}",
+          "body": "<p>Hi,</p><p>I wanted to follow up on my previous email about a potential collaboration with {{gallery_name}}.</p><p>I understand you're busy, but I'd love the chance to share some ideas...</p><p>Best regards</p><p><a href='{{unsubscribe_link}}'>Unsubscribe</a></p>"
+        },
+        "followup_2": {
+          "subject": "One last note - {{gallery_name}}",
+          "body": "<p>Hi,</p><p>This is my final follow-up regarding {{gallery_name}}. If now isn't the right time, I completely understand.</p><p>If you'd like to connect in the future, feel free to reach out.</p><p>Best regards</p><p><a href='{{unsubscribe_link}}'>Unsubscribe</a></p>"
+        }
+      }
+    }
+  },
+  "connections": {
+    "google-sheets": {
+      "type": "oauth2",
+      "service": "google",
+      "scopes": ["spreadsheets"]
+    }
+  },
+  "setup_instructions": [
+    "1. Import this blueprint into Make.com",
+    "2. Connect your Google account for Sheets access",
+    "3. Get your Brevo API key from: Brevo Dashboard > Settings > SMTP & API > API Keys",
+    "4. Add your verified sender email (must be verified in Brevo)",
+    "5. Configure variables:",
+    "   - YOUR_SPREADSHEET_ID: from your Google Sheets URL",
+    "   - brevo_api_key: your Brevo API key",
+    "   - sender_email: your verified sender email",
+    "   - batch_size: start with 2-5 for warmup",
+    "6. Customize email templates in the templates variable",
+    "7. Enable the scenario - runs every 15 min during business hours"
+  ],
+  "warmup_schedule": {
+    "week_1": { "daily_limit": 10, "batch_size": 2 },
+    "week_2": { "daily_limit": 25, "batch_size": 5 },
+    "week_3": { "daily_limit": 50, "batch_size": 10 },
+    "week_4": { "daily_limit": 100, "batch_size": 15 },
+    "ongoing": { "daily_limit": 200, "batch_size": 20 }
+  }
+}

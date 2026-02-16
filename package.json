@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node main.js",
-    "test": "echo \"No tests specified\" && exit 0"
+    "web": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0",
+    "test:sheets": "node test-sheets-export.js"
   },
   "keywords": [
     "apify",
@@ -19,7 +21,10 @@
   "license": "MIT",
   "dependencies": {
     "apify": "^3.1.10",
+    "cors": "^2.8.6",
     "crawlee": "^3.5.8",
+    "express": "^5.2.1",
+    "googleapis": "^129.0.0",
     "playwright": "^1.40.0"
   },
   "engines": {
